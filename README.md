@@ -27,3 +27,5 @@
     npm install log4js
 # https://www.npmjs.com/package/electron-shutdown-command?activeTab=readme
     npm install --save electron-shutdown-command
+
+    css/bootstrap-icons not uploaded
