@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>    
+    <title>ADTA 1.0.36 -- <%= pageTitle %></title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="js/datatables/datatables.min.css">
+    <link rel="stylesheet" href="js/daterangepicker/daterangepicker.css">
+    <link rel="stylesheet" href="js/datepicker/bootstrap-datepicker.min.css">
+
+    <link rel="stylesheet" href="css/bootstrap-icons/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <div class="main-area flex-grow-1">
+        <div class="row m-0">
+            <div class="text-right" style="height: 60px;line-height:60px;width: 350px;">
+                <div id="global_mode_buttons_container" style="display: none;">
+                    <button type="button" style="display: none;margin-right: 57px;" id="global_button_manual_mode_active" class="btn btn-primary">Activate manual mode</button>
+                    <button type="button" style="display: none;margin-right: 42px;background-color: #d3d3d3;border-color: #d3d3d3;" id="global_button_manual_mode_deactive" class="btn btn-primary">Deactivate manual mode</button>
+                </div>
+            </div>
+            <div class="text-center" style="height: 60px;width: 750px;">
+                <!--height has to 36-->
+                <img id="header-alarm-id-1" class="float-right mr-1"  src="resources/estop_loop_open.png" height="100%" style="display: none;">
+                <div id="header-alarm-id-101" class="float-right text-center mr-1" style="height: 60px;width: 60px;border-radius: 50%;background-color: lightgrey;padding: 5px;font-size: 13px;font-weight: bold;">Air Pressure</div>
+                <div id="header-alarm-id-40" class="float-right text-center mr-1" style="height: 60px;width: 60px;border-radius: 50%;background-color: lightgrey;padding: 5px;font-size: 13px;font-weight: bold;line-height: 50px;">AEG</div>
+            </div>
+            <div class="text-right" style="height: 60px;width: 750px;">
+                <!--height has to 36-->
+                <img src="resources/bluecrest-logo.png" height="24" class="mr-1 mt-2 mb-3">
+            </div>
+        </div>
+        <div class="row m-0">
+            <div class="col-lg-4 p-0">
+                <div class="row m-0">
+                    <div class="col-lg-2 pl-0">
+                        <span class="badge badge-pill badge-light" id="display_date">06/12/2020</span>
+                        <span class="badge badge-pill badge-light" id="display_time">11:20:30</span>
+                    </div>
+                    <div class="col-lg-5">
+                        <nav class="navbar navbar-expand-lg navbar-light p-0 m-0">
+                            <div class="collapse navbar-collapse" id="navbarColor03">
+                                <ul class="nav nav-pills w-100">
+                                    <li class="nav-item mr-0 w-100 text-center">
+                                        <a class="nav-link bg-light disabled text-dark font-weight-bold" href="#" id="display_machine_name"></a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </nav>
+                    </div>
+                    <div class="col-lg-3 text-right">
+                        <span class="badge badge-pill badge-light" style="padding:0;" >
+                            <select id="ip_list_dropdown" style="border:0;background-color: #f8f9fa; font-weight: bold;">
+                                <option>Select machine</option>
+                            </select>
+                        </span>
+                        <span class="badge badge-pill badge-light" id="show-username"></span>
+                    </div>
+                    <div class="col-lg-2 text-center" id="status-circle">
+                        &#11044;
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-8 p-0">
+                <div class="row m-0">
+                    <div class="col-lg-12 p-0">
+                        <nav class="navbar navbar-expand-lg navbar-light pr-0 mr-0">
+                            <div class="collapse navbar-collapse" id="navbarColor03">
+                                <ul class="nav nav-pills w-100">
+                                    <li class="nav-item">
+                                        <a class="nav-link <%= (['general-view','general-view-devices','general-view-motors','general-view-bin-details'].includes(currentMenu)) ? 'active' : 'bg-light' %>" href="#" data-link="general-view">General View</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link <%= currentMenu === 'alarms' ? 'active' : 'bg-light' %>" href="#" data-link="alarms">Alarms</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link <%= currentMenu === 'alarms-history' ? 'active' : 'bg-light' %>" href="#" data-link="alarms-history">Alarms History</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link <%= currentMenu === 'alarms-hit-list' ? 'active' : 'bg-light' %>" href="#" data-link="alarms-hit-list">Alarms Hit List</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link <%= (['statistics','statistics-hourly','statistics-bins-detail', 'statistics-bins-detail-single','sorting-code-detail','statistics-shift-wise','statistics-oee'].includes(currentMenu)) ? 'active' : 'bg-light' %>" href="#" data-link="statistics">Statistics</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link <%= (currentMenu === 'token') ? 'active' : 'bg-light' %>" href="#" data-link="token">Token</a>
+                                    </li>
+                                    <li id="menu-maint" class="nav-item" style="display: none;">
+                                        <a class="nav-link <%= (['maint','params','maint-motors','maint-devices','maint-sort'].includes(currentMenu)) ? 'active' : 'bg-light' %>" href="#" data-link="maint">Maint</a>
+                                    </li>
+                                    <li id="menu-login" class="nav-item mr-0" style="display: none;">
+                                        <a class="nav-link <%= (['login'].includes(currentMenu)) ? 'active' : 'bg-light' %>" href="#" data-link="login">Login</a>
+                                    </li>
+                                    <li id="menu-logout" class="nav-item mr-0" style="display: none;">
+                                        <a id="btn-logout" class="nav-link bg-light" href="#" data-link="logout">Logout</a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+

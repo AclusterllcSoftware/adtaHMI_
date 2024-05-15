@@ -1,0 +1,27 @@
+<footer class="text-left">
+  <% if (['general-view','general-view-devices','general-view-motors','general-view-bin-details'].includes(currentMenu)) { %>
+    <div class="main-area flex-grow-1">
+      <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'general-view' ? 'active' : '' %>" href="#" data-link="general-view">Conveyors</a>
+      <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'general-view-devices' ? 'active' : '' %>" href="#" data-link="general-view-devices">Devices</a>
+      <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'general-view-motors' ? 'active' : '' %>" href="#" data-link="general-view-motors">Motor</a>
+    </div>
+  <% } else if (['statistics','statistics-hourly', 'statistics-bins-detail', 'statistics-bins-detail-single','sorting-code-detail','statistics-shift-wise','statistics-oee'].includes(currentMenu))
+    { %>
+      <div class="main-area flex-grow-1">
+        <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'statistics-bins-detail' ? 'active' : '' %>"  href="#" data-link="statistics-bins-detail">Bins Detailed</a>
+        <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'statistics-hourly' ? 'active' : '' %>"  href="#" data-link="statistics-hourly">Hourly</a>
+        <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'sorting-code-detail' ? 'active' : '' %>"  href="#" data-link="sorting-code-detail">Sorting Code Detail</a>
+        <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'statistics-shift-wise' ? 'active' : '' %>"  href="#" data-link="statistics-shift-wise">Shift wise</a>
+        <a style="display: none;" class="btn btn-outline-primary btn-footer <%= currentMenu === 'statistics-oee' ? 'active' : '' %>"  href="#" data-link="statistics-oee">OEE</a>
+      </div>
+    <%}
+    else if (['maint', 'params','maint-motors','maint-devices', 'maint-sort'].includes(currentMenu)) {%>
+      <div class="main-area flex-grow-1">
+          <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'maint' ? 'active' : '' %>"  href="#" data-link="maint">IOs</a>
+          <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'params' ? 'active' : '' %>"  href="#" data-link="params">Params</a>
+          <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'maint-devices' ? 'active' : '' %>"  href="#" data-link="maint-devices">Devices</a>
+          <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'maint-motors' ? 'active' : '' %>"  href="#" data-link="maint-motors">Motors</a>
+          <a class="btn btn-outline-primary btn-footer <%= currentMenu === 'maint-sort' ? 'active' : '' %>"  href="#" data-link="maint-sort">Sort</a>
+      </div>
+      <%}%>
+</footer>

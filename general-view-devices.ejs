@@ -1,0 +1,78 @@
+<%- include('header', {currentMenu: 'general-view-devices', pageTitle: 'Devices'}); %>
+    <div class="row">
+        <div class="col-12">
+            <%- include('general_layouts/'+system_general_layout_no+'/general_devices.svg') %>
+            <%- include('general_layouts/'+system_general_layout_no+'/common_html.ejs') %>
+        </div>
+    </div>
+    <div class="row m-0">
+        <div class="col-lg-12 pt-0 pb-0 pl-2 pr-2 mt-2">
+            <%- include('components/active_alarm_content') %>
+        </div>
+    </div>
+</div>
+<%- include('footer', {currentMenu: 'general-view-devices'}); %>
+<script src="js/jquery-bootstrap.js"></script>
+<script src="js/jquery.newsTicker.js"></script>
+<script src="js/daterangepicker/moment.min.js"></script>
+<script src="js/nav.js"></script>
+<script src="general_layouts/general_functions.js"></script>
+
+<script>
+let basic_info={}
+
+
+jQuery(document).ready(function() {
+    $('[data-toggle="tooltip"]').tooltip();
+    loadSettingsShowProduction();
+    loadAndGetDetailedActiveAlarmSettings();//nav.js
+	
+    jQuery("#ip_list_dropdown").change(function() {
+        selected_machine = jQuery(this).val();
+        if(selected_machine !== "") {
+            let selected_machine_name = machine_list[selected_machine];
+            jQuery("#display_machine_name").text(selected_machine_name);
+        }
+        else {
+            jQuery("#display_machine_name").text("Select a machine");
+            selected_machine = 0;
+        }
+        ipcRenderer.send("get:views", selected_machine, "general-view-devices");
+    });
+});
+
+ipcRenderer.on("render:general-view-devices", function(e, data) {
+    basic_info=data;
+    setBinsLabel(data['binsInfo'],basic_info['hmiSettings']['general_layout_no']);//nav.js
+    setEstopsLabel(data['inputsInfo']);//nav.js
+    setDevicesLabel(data['devicesInfo']);//nav.js
+    setConveyorsLabel(data['conveyorsInfo']);//nav.js
+
+    $('.bin.cursor-pointer').on('click',function (){
+        let key=$(this).attr('bin-key');
+        ipcRenderer.send("render:general-view-bin-details", selected_machine,key);
+    })
+    ipcRenderer.send("sendRequest", selected_machine,'getIoOutputStates', {});
+});
+ipcRenderer.on("getIoOutputStates", function(e, data) {
+    setTestButtonsStatus(data['ioOutputStates']);
+    ipcRenderer.send("sendRequest", selected_machine,'getGeneralDevicesViewData', {});//for fixing waiting 1sec
+    setInterval(() => {
+        ipcRenderer.send("sendRequest", selected_machine,'getGeneralDevicesViewData', {});
+    }, 1000);
+})
+ipcRenderer.on("getGeneralDevicesViewData", function(e, data) {
+    let machineId=data['machineId'];
+    setBinsStates(machineId,data['binsStates'],basic_info['binsInfo']);//nav.js
+    setConveyorsStates(machineId,data['conveyorsStates'],basic_info['conveyorsInfo']);//nav.js
+    setEstopsStates(machineId,data['inputsStates'],basic_info['inputsInfo']);//nav.js
+    setDevicesStates(machineId,data['devicesStates'],basic_info['devicesInfo']);//nav.js
+    setDoorsStates(machineId,data['inputsStates'],basic_info['doorsInfo']);//nav.js
+    setActiveAlarms(machineId,data['activeAlarms'],basic_info['alarmsInfo'])//nav.js
+    setStatisticsCounter(data['statistics_counter'])//nav.js
+    setStatisticsOee(data['statistics_oee'])//nav.js
+
+});
+</script>
+</body>
+</html>

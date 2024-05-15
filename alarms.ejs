@@ -1,0 +1,160 @@
+<%- include('header', {currentMenu: 'alarms', pageTitle: 'Alarms'}); %>
+    <div class="row m-0 mt-2">
+        <div class="col-lg-1 pt-0 pb-0 pl-2 pr-2">
+            <h2>Alarms</h2>
+        </div>
+        <div class="col-lg-1 pt-0 pb-0 pl-2 pr-2">
+            <div class="form-check pt-2 pb-2 pl-2 pr-2">
+                <input class="form-check-input" type="checkbox" id="chk_refresh_disable">
+                <label class="form-check-label" for="chk_refresh_disable">Disable Refresh</label>
+            </div>
+        </div>
+    </div>
+    <div class="row m-0 mt-2">
+
+        <div class="col-lg-12 pt-0 pb-0 pl-2 pr-2">
+
+
+            <table class="table table-sm table-bordered" id="alarm_table">
+                <thead>
+                <tr>
+                    <th width="20%">Timestamp</th>
+                    <th width="10%">Duration</th>
+                    <th width="10%">Class</th>
+                    <th width="10%">Location</th>
+                    <th width="20%">Description</th>
+                    <th width="20%">Variable Name</th>
+                </tr>
+                </thead>
+                <tbody id="active_alarm_tbody">
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Duration</th>
+                        <th>Class</th>
+                        <th>Location</th>
+                        <th>Description</th>
+                        <th>Variable Name</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+<%- include('footer', {currentMenu: 'alarms'}); %>
+<script src="js/jquery-bootstrap.js"></script>
+<script src="js/jquery.newsTicker.js"></script>
+<script src="js/daterangepicker/moment.min.js"></script>
+<script src="js/datatables/datatables.js"></script>
+<script src="js/jszip.min.js"></script>
+<script src="js/datepicker/bootstrap-datepicker.min.js"></script>
+<script src="js/daterangepicker/daterangepicker.js"></script>
+<script src="js/nav.js"></script>
+<script>
+
+let data_table;
+let machine_mode = 9;
+
+jQuery(document).ready(function() {
+    
+    jQuery("#ip_list_dropdown").change(function() {
+        selected_machine = jQuery(this).val();
+
+        if(selected_machine !== "") {
+            let selected_machine_name = machine_list[selected_machine];
+            jQuery("#display_machine_name").text(selected_machine_name);            
+        }
+        else {
+            jQuery("#display_machine_name").text("Select a machine");
+            selected_machine = 0;            
+        }
+        ipcRenderer.send("get:views", selected_machine, "alarms-view");
+    });
+
+    data_table = jQuery('#alarm_table').DataTable({
+        dom: 'Bfrtip',
+        buttons: [
+        {
+            extend: 'csv',
+            fieldSeparator: ";",
+            text: 'Export'
+        }],
+        "columns": [
+            null,
+            { "orderable": false },
+            null,
+            null,
+            { "orderable": false },
+            { "orderable": false },
+        ],
+        "pageLength": 20,
+        "order": [],
+        initComplete: function () {
+            this.api().columns().every(function () {
+                let column = this;
+                if (column.index() === 2 || column.index() === 3) {
+                    $('<select class="form-control form-control-sm d-inline-block" id="filter_'+ column.index() +'"><option value="">Select '+ column.footer().textContent +'</option></select>')
+                        .appendTo( $(column.footer()).empty() )
+                        .on('change', function () {
+                            if (column.search() !== this.value) {
+                                column.search(this.value).draw();
+                            }
+                    });
+                }
+            });
+        }
+    });
+});
+let basic_info={}
+ipcRenderer.on("render:alarms-view", function(e, data) {
+    basic_info=data;
+    ipcRenderer.send("sendRequest", selected_machine,'getAlarmsViewData', {});//for fixing waiting 1sec
+    setInterval(() => {
+        ipcRenderer.send("sendRequest", selected_machine,'getAlarmsViewData', {});
+    }, 1000);
+
+});
+ipcRenderer.on("getAlarmsViewData", function(e,data) {
+    if ($('#chk_refresh_disable').is(":checked")) {
+        return;
+    }
+    let alarmsInfo=basic_info['alarmsInfo']
+    let activeAlarms = data['activeAlarms'];
+    let now_time=moment().unix();
+    jQuery("#active_alarm_tbody").empty();
+    let alarm_class_to_names = {"0" : "Error", "1" : "Warning", "2" : "Message"};
+    data_table.clear().draw();
+    for (let index in activeAlarms) {
+        let activeAlarm = activeAlarms[index];
+        let combo_id=activeAlarm['machine_id']+'_'+activeAlarm['alarm_id']+'_'+activeAlarm['alarm_type'];
+        let alarmInfo=alarmsInfo[combo_id];
+        let date_active_timestamp=activeAlarm['date_active_timestamp'];
+
+        data_table.row.add( [
+            timeConverter(date_active_timestamp),
+            secondsToDhms(now_time-date_active_timestamp),
+            alarm_class_to_names[alarmInfo['alarm_class']],
+            alarmInfo['location'],
+            alarmInfo['description'],
+            alarmInfo['variable_name']
+        ] ).draw( false );
+    }
+
+    data_table.columns().every(function () {
+        let column = this;
+        if (column.index() === 2 || column.index() === 3) {
+            let select = $('#filter_'+column.index());
+            select.children().not(':first').remove();
+            select.find('option').not(':first').remove()
+            column.data().unique().sort().each(function (d, j) {
+                select.append('<option value="' + d + '">' + d + '</option>')
+            });
+        }
+    });
+
+    //data_table.draw();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<%- include('header', {currentMenu: '', pageTitle: 'Settings'}); %>
+<div class="row m-0 mt-2">
+    <div class="col-lg-12 pt-0 pb-0 pl-2 pr-2">
+        <form id="settings-form">
+            <fieldset>
+                <legend id="the_legend">Settings</legend>
+                <div class="row">
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label for="ip_address_input">Java Server IP Address</label>
+                            <input type="text" class="form-control" id="ip_address_input" name="ip_address_input" aria-describedby="ipAddressHelp" placeholder="Enter IP Address">
+                            <small id="ipAddressHelp" class="form-text text-muted">Java server IP address</small>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label for="port_input">Java Server Port</label>
+                            <input type="text" class="form-control" id="port_input" name="port_input" aria-describedby="portHelp" placeholder="Enter Port">
+                            <small id="portHelp" class="form-text text-muted">Java server port number</small>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label for="cm_ip_address_input">CM IP Address</label>
+                            <input type="text" class="form-control" id="cm_ip_address_input" name="cm_ip_address_input" aria-describedby="cmIpAddressHelp" placeholder="Enter CM IP Address">
+                            <small id="cmIpAddressHelp" class="form-text text-muted">CM IP Address</small>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label>Detailed Active Alarm</label>
+                            <select id="detailed_active_alarm" name="detailed_active_alarm" class="form-control">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label>Motor Speed Unit</label>
+                            <select id="motor_speed_unit" name="motor_speed_unit" class="form-control">
+                                <option value="m_s">m/s</option>
+                                <option value="ft_min">ft/min</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="form-group">
+                            <label>General View layout</label>
+                            <select id="general_layout_no" name="general_layout_no" class="form-control">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" style="visibility: hidden;" id="button_save" class="btn btn-primary">Save</button>
+                <button type="button" style="display: none;" id="button_login" class="btn btn-primary">Login</button>
+                <button type="button" style="display: none;" id="button_logout" class="btn btn-primary">Logout</button>
+                <button type="button" style="display: none;" id="button_changePassword" class="btn btn-primary">Change Password</button>
+                <span id="mode_buttons_container" style="display: none">
+                    <button type="button" style="display: none;" id="button_manual_mode_active" class="btn btn-primary">Activate manual mode</button>
+                    <button type="button" style="display: none;" id="button_manual_mode_deactive" class="btn btn-primary">Deactivate manual mode</button>
+                </span>
+            </fieldset>
+        </form>
+    </div>
+</div>
+<div class="row">
+    <div class="col-12">
+        <button type="button" id="button_terminal_command" class="btn btn-primary float-right" style="display: none;">Run</button>
+        <input type="text" class="float-right form-control p-0 border-0" id="terminal_command_input" style="width: 200px;">
+    </div>
+
+
+</div>
+
+</div>
+<%- include('footer', {currentMenu: 'settings'}); %>
+<script src="js/jquery-bootstrap.js"></script>
+<script src="js/jquery.newsTicker.js"></script>
+<script src="js/daterangepicker/moment.min.js"></script>
+<script src="js/nav.js"></script>
+<script>
+    let basic_info={}
+    async function setSettingsValues(){
+        //loading default values
+        let settings_values = await ipcRenderer.invoke('getStoreValue');
+        for (let key in settings_values) {
+            let value = settings_values[key];
+            let related_input_id = "#" + key;
+            if(value != "not_set") {
+                jQuery(related_input_id).val(value)
+            }
+        }
+    }
+    async function setButtonAccess(connected){
+        if(connected==1){
+            let currentUser=basic_info['currentUser'];
+            if(currentUser['role']>0){
+                if(currentUser['role']==1){
+                    $('#button_save').css("visibility", "visible");
+                }
+                else{
+                    $('#button_save').css("visibility", "hidden");
+                }
+                $('#button_login').hide();
+                $('#button_logout').show();
+                $('#button_changePassword').show();
+                if(currentUser['role']<4){
+                    $('#mode_buttons_container').show();
+                }
+                else{
+                    $('#mode_buttons_container').hide();
+                }
+            }
+            else {
+                $('#button_save').css("visibility", "hidden");
+                $('#button_login').show();
+                $('#button_logout').hide();
+                $('#button_changePassword').hide();
+                $('#mode_buttons_container').hide();
+            }
+        }
+        else{
+            $('#button_save').css("visibility", "visible");
+            $('#button_login').hide();
+            $('#button_logout').hide();
+            $('#button_changePassword').hide();
+            $('#mode_buttons_container').hide();
+        }
+    }
+    jQuery(document).ready(async function() {
+        await setSettingsValues();
+        jQuery("#ip_list_dropdown").change(function() {
+            selected_machine = jQuery(this).val();
+            if(selected_machine !== "") {
+                let selected_machine_name = machine_list[selected_machine];
+                jQuery("#display_machine_name").text(selected_machine_name);
+            }
+            else {
+                jQuery("#display_machine_name").text("Select a machine");
+                selected_machine = 0;
+            }
+            ipcRenderer.send("get:views", selected_machine, "settings");
+        });
+        jQuery("#button_login").click( function() {
+            ipcRenderer.send("change:link", "login");
+        });
+        jQuery("#button_logout").click( function() {
+            ipcRenderer.send("sendRequest", selected_machine,'logoutUser', {});
+        });
+        jQuery("#button_changePassword").click( function() {
+            ipcRenderer.send("change:link", "change-password");
+        });
+        jQuery("#button_manual_mode_active").click( function() {
+            $('#button_manual_mode_active').hide();
+            ipcRenderer.send("sendRequest", selected_machine,'changeMode', {'mode':1});
+        });
+        jQuery("#button_manual_mode_deactive").click( function() {
+            $('#button_manual_mode_deactive').hide();
+            ipcRenderer.send("sendRequest", selected_machine,'changeMode', {'mode':0});
+        });
+        jQuery("#button_save").click( function() {
+            let formData = {};
+            jQuery.map($("#settings-form").serializeArray(), function(n, i){
+                formData[n['name']] = n['value'];
+            });
+            ipcRenderer.send("saveSettings", formData);
+        });
+        $(document).on("input", "#terminal_command_input", function(event)
+        {
+            if(['#cg%','#sd%'].includes($('#terminal_command_input').val())){
+                $('#button_terminal_command').show();
+            }
+            else{
+                $('#button_terminal_command').hide();
+            }
+        });
+        $(document).on("click", "#button_terminal_command", function(event)
+        {
+            ipcRenderer.send("sendRequestToIpcMain", "terminal_command",{'command':$('#terminal_command_input').val()});
+        });
+
+
+        //call even not connected
+        ipcRenderer.send("get:views", selected_machine, "settings");
+
+    });
+    ipcRenderer.on("render:settings", async function(e, data) {
+        basic_info=data;
+        setInterval(() => {
+            ipcRenderer.send("sendRequest", selected_machine,'getSettingsViewData', {});
+        }, 1000);
+    });
+    ipcRenderer.on("getSettingsViewData",async function(e, data) {
+        await setButtonAccess(data['connected']);
+    })
+    ipcRenderer.on("getCommonStatus", function(e, data) {
+        let currentMachineMode=data['machineMode']
+        if(currentMachineMode==0){
+            $('#button_manual_mode_active').show();
+            $('#button_manual_mode_deactive').hide();
+        }
+        else if(currentMachineMode==1){
+            $('#button_manual_mode_active').hide();
+            $('#button_manual_mode_deactive').show();
+        }
+        else{
+            $('#button_manual_mode_active').hide();
+            $('#button_manual_mode_deactive').hide();
+        }
+    });
+</script>
+</body>
+</html>

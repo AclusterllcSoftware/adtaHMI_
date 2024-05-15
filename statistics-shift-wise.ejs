@@ -1,0 +1,378 @@
+<%- include('header', {currentMenu: 'statistics-shift-wise', pageTitle: 'Shiftwise'}); %>
+<div class="row">
+    <div class="col-md-10">
+        <div class="alert alert-warning alert-dismissible fade show" id="alert_message_container" role="alert" style="display: none;">
+            <p class="mb-0" id="alert_message"></p>
+            <button type="button" class="close alert-close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-3"><h5>From</h5></div>
+    <div class="col-md-3"><h5>To</h5></div>
+</div>
+<div class="row">
+    <div class="col-md-3">
+        <div class="row">
+            <div class="col-md-6 pr-0">
+                <input type="text" class="form-control" id="from_date" placeholder="From date">
+            </div>
+            <div class="col-md-3 pl-1 pr-0">
+                <select class="form-control" id="from_date_hour"></select>
+            </div>
+            <div class="col-md-3 pl-1 pr-0">
+                <select class="form-control" id="from_date_minute"></select>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="row">
+            <div class="col-md-6 pr-0">
+                <input type="text" class="form-control" id="to_date" placeholder="To date">
+            </div>
+            <div class="col-md-3 pl-1 pr-0">
+                <select class="form-control" id="to_date_hour"></select>
+            </div>
+            <div class="col-md-3 pl-1 pr-0">
+                <select class="form-control" id="to_date_minute"></select>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 pr-0">
+        <div class="row">
+            <div class="col-md-2 pr-0">
+                <button type="button" class="btn btn-primary" id="button_filter">Filter</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row mt-4">
+    <div class="col-lg-12 mt-4" id="highchart_volume" style="height: 450px;">New Volume</div>
+</div>
+<div class="row mt-2">
+    <div class="col-12" id="container_datatable">
+<!--        <div style="display: block; overflow-y: auto; height: 750px; overflow-x: auto; position: relative;" >-->
+<!--        </div>-->
+    </div>
+</div>
+
+</div>
+
+<%- include('footer', {currentMenu: 'statistics-shift-wise'}); %>
+<script src="js/jquery-bootstrap.js"></script>
+<script src="js/datatables/datatables.js"></script>
+<script src="js/jszip.min.js"></script>
+<script src="js/daterangepicker/moment.min.js"></script>
+<script src="js/datepicker/bootstrap-datepicker.min.js"></script>
+<script src="js/jquery.newsTicker.js"></script>
+<script src="js/nav.js"></script>
+<script>
+    const Highcharts = require('highcharts/highstock')
+    require('highcharts/modules/exporting')(Highcharts);
+    require('highcharts/modules/export-data')(Highcharts);
+    const sc_color_codes = {
+        'sc0': '#34d399',
+        'sc1': '#38bdf8',
+        'sc3': '#fb923c',
+        'sc4': '#e879f9',
+        'sc5': '#818cf8',
+        'sc6': '#c084fc',
+        'sc7': '#2dd4bf',
+        'sc8': '#292524',
+        'sc9': '#facc15',
+        'sc10': '#a3e635',
+        'sc12': '#0891b2',
+        'sc14': '#dc2626',
+        'sc16': '#c026d3',
+        'sc17': '#7e22ce',
+        'sc18': '#a1a1aa',
+        'sc21': '#fde047',
+    };
+    let basic_info={}
+    let intervalForGetStatisticsCounters;
+    jQuery(document).ready(function () {
+        for (let i = 0; i < 24; i++) {
+            let option= '<option value="' +(i<10?'0':'')+ i + '">' + (i<10?'0':'')+i+ '</option>';
+            $("#from_date_hour").append(option);
+            $("#to_date_hour").append(option);
+        }
+        for (let i = 0; i < 60; i++) {
+            let option= '<option value="' +(i<10?'0':'')+ i + '">' + (i<10?'0':'')+i+ '</option>';
+            $("#from_date_minute").append(option);
+            $("#to_date_minute").append(option);
+        }
+        $("#from_date").datepicker({
+            autoclose: true,
+            format: 'mm-dd-yyyy',
+            orientation: "bottom right"
+        });
+        $("#to_date").datepicker({
+            autoclose: true,
+            format: 'mm-dd-yyyy',
+            orientation: "bottom right",
+        });
+        $("#ip_list_dropdown").change(function () {
+            selected_machine = jQuery(this).val();
+            if (selected_machine !== "") {
+                let selected_machine_name = machine_list[selected_machine];
+                jQuery("#display_machine_name").text(selected_machine_name);
+            } else {
+                jQuery("#display_machine_name").text("Select a machine");
+                selected_machine = 0;
+            }
+            ipcRenderer.send("get:views", selected_machine, "statistics-shift-wise");
+        });
+
+    });
+    ipcRenderer.on("render:statistics-shift-wise", function (e, data) {
+        basic_info=data;
+        $('#from_date').datepicker('update', moment().subtract(6, 'days').format('MM-DD-YYYY'));
+        $('#button_filter').trigger('click')
+    });
+    $(document).on('click','#button_filter',function (event){
+        filterShift();
+    })
+    function filterShift(){
+        $("#alert_message_container").hide();
+        let from_timestamp = moment($('#from_date').val()+" "+$("#from_date_hour").val()+":"+$("#from_date_minute").val(), "MM-DD-YYYY HH:mm").unix();
+        let to_timestamp = moment($('#to_date').val()+" "+$("#to_date_hour").val()+":"+$("#to_date_minute").val(), "MM-DD-YYYY HH:mm").unix();
+        let requestData = [
+            {
+                'name': 'statistics_counter',
+                'params': {
+                }
+            },
+        ];
+        let error_message='';
+        if(Number.isInteger(from_timestamp)){
+            requestData[0]['params']['from_timestamp']=from_timestamp;
+            if($('#from_date').val()==''){
+                error_message+="No From Date Selected.";
+            }
+        }
+        else{
+            error_message+="Invalid From Date";
+        }
+        if(Number.isInteger(to_timestamp)){
+            requestData[0]['params']['to_timestamp']=to_timestamp;
+            if($('#to_date').val()==''){
+                error_message+="No To Date Selected.";
+            }
+        }
+
+        if(error_message==''){
+                if(intervalForGetStatisticsCounters !=undefined){
+                    clearInterval(intervalForGetStatisticsCounters);
+                }
+                //$('#system_loading').show()
+                //dataTable.clear().search('').draw();
+                ipcRenderer.send("sendRequestToServer", "getStatisticsCounters", {}, requestData);
+                intervalForGetStatisticsCounters=setInterval(() => {
+                    ipcRenderer.send("sendRequestToServer", "getStatisticsCounters", {}, requestData);
+                }, 60000);
+        }
+        else{
+            $("#alert_message").html(error_message);
+            $("#alert_message_container").show();
+        }
+    }
+    ipcRenderer.on("getStatisticsCounters", function(e, jsonObject) {
+        //$('#system_loading').hide()
+        //console.log(jsonObject)
+        $('#container_datatable').html('');
+        let shifts=jsonObject['data']['statistics_counter']['records']
+
+        if(shifts.length>0){
+            let ths=[]
+            let tds={
+                total_read: {label: 'Total inducted', values: []},
+                good: {label: 'Total good diverts', values: []},
+                machine_error: {label: 'Total machine error packages', values: []},
+                non_machine_error: {label: 'Total non-machine error packages', values: []},
+                lost_comm: {label: 'Lost of communication', values: []},
+                avg_length: {label: 'Avg. length', values: []},
+                avg_gap: {
+                    label: 'Avg. gap', values: [],
+                },
+                good_scan: {label: 'Good scan', values: []},
+                no_read: {label: 'No read', values: []},
+                no_code: {label: 'No code', values: []},
+                multiple_read: {label: 'Multiple read', values: []},
+            }
+            let scs=Object.values(basic_info['scsInfo']);
+            let highchart_volume_data=[]
+            scs.forEach(sc => {
+                tds['sc'+sc['value']]={label:sc['label'],values:[]}
+                highchart_volume_data.push({
+                    name:sc['label'],
+                    color:sc_color_codes['sc'+sc['value']],
+                    data:[],
+                    total:0,
+                    code: "sc" + +sc['value'],
+                })
+            });
+            shifts.forEach(shift => {
+                ths.push(moment.unix(shift['created_at_timestamp']).format('MMM D Y, H:mm:ss'));
+
+                let machine_errors = 0, non_machine_errors = 0,total_scs_count=0;
+                ['sc1', 'sc3', 'sc4', 'sc6', 'sc9', 'sc14', 'sc16', 'sc17', 'sc21'].forEach(m_key => {
+                    machine_errors += (+shift[m_key])
+                });
+                ['sc5', 'sc7', 'sc8', 'sc10', 'sc12', 'sc18'].forEach(m_key => {
+                    non_machine_errors += (+shift[m_key])
+                })
+                tds['total_read']['values'].push(shift['total_read'], shift['total_read'] > 0 ? '100.00%' : '0.00%')
+                tds['good']['values'].push(shift['sc0'], shift['total_read'] > 0 ? (shift['sc0'] * 100 / shift['total_read']).toFixed(2)+'%':'0.00%')
+                tds['machine_error']['values'].push(machine_errors, shift['total_read'] > 0 ? (machine_errors*100 / shift['total_read']).toFixed(2)+'%':'0.00%')
+                tds['non_machine_error']['values'].push(non_machine_errors, shift['total_read'] > 0 ? (non_machine_errors*100 / shift['total_read']).toFixed(2)+'%':'0.00%')
+                tds['lost_comm']['values'].push(0, 0)//TODO
+                tds['avg_length']['values'].push(shift['total_good_length'] > 0 ? (shift['sum_length'] * 100 / shift['total_good_length']).toFixed(2)+'%':'0.00%','-')//TODO
+                tds['avg_gap']['values'].push(shift['total_good_gap'] > 0 ? (shift['sum_gap'] * 100 / shift['total_good_gap']).toFixed(2)+'%':'0.00%','-')//TODO
+                tds['good_scan']['values'].push(shift['valid'],shift['total_read'] > 0 ? (shift['valid'] *100 / shift['total_read']).toFixed(2)+'%':'0.00%')
+                tds['no_read']['values'].push(shift['no_read'],shift['total_read'] > 0 ? (shift['no_read'] *100 / shift['total_read']).toFixed(2)+'%':'0.00%')
+                tds['no_code']['values'].push(shift['no_code'],shift['total_read'] > 0 ? (shift['no_code'] *100 / shift['total_read']).toFixed(2)+'%':'0.00%')
+                tds['multiple_read']['values'].push(shift['multiple_read'],shift['total_read'] > 0 ? (shift['multiple_read'] *100 / shift['total_read']).toFixed(2)+'%':'0.00%')
+                let total_sc=0;
+                highchart_volume_data.forEach(d => {
+                    total_sc+=(+shift[d['code']])
+                    d['total'] += (+shift[d['code']])
+                    d['data'].push([shift['created_at_timestamp']*1000, (+shift[d['code']])]);
+                });
+
+                //may be change bellow
+                scs.forEach(sc => {
+                    tds['sc'+sc['value']]['values'].push(shift['sc'+sc['value']],total_sc > 0 ? (shift['sc'+sc['value']] *100 / total_sc).toFixed(2)+'%':'0.00%')
+                })
+
+            })
+
+            let th_html='<th></th>';
+            let td_first_html='<td style="background-color: #FFFFFF; width: 230px"></td>';
+
+            ths.forEach(th => {
+                th_html+='<th></th><th></th>';
+                td_first_html+='<td class="text-center" colspan="2" style="background-color: #FFFFFF;font-weight: bold;">'+th+'</td><td style="display: none;">'+th+'</td>';
+            })
+            let table_html='<table class="table table-sm table-bordered" id="table_datatable">' +
+                '<thead style="display: none;"><tr>'+th_html+'</tr></thead>' +
+                '<tbody><tr>'+td_first_html+'</tr></tbody>' +
+                '</table>';
+            $('#container_datatable').html(table_html);
+            let dataTable= $('#table_datatable').DataTable({
+                //dom: 'Bifrtp',
+                dom: '<Bf>rtp',
+                paging: false,
+                searching: false,
+                buttons: [
+                    {
+                        extend: 'csv',
+                        fieldSeparator: ";",
+                        text: 'Export'
+                    }],
+                // order:[[3,'asc']],
+                //order:[],//no ordering default was first column
+                ordering: false,
+            });
+            //$('#table_datatable > tbody > tr:first td').css({position: 'sticky', top: 0});
+            for(let key in tds){
+                let td=tds[key];
+                let row=[];
+                row.push(td['label'])
+                for(let i=0;i<td['values'].length;i++){
+                    row.push('<div style="text-align: right;">'+td['values'][i]+'</div>')
+                }
+                dataTable.row.add(row);
+            }
+            dataTable.draw();
+            highchart_volume_data.sort((a, b) => a['total'] - b['total']);
+            new Highcharts.chart('highchart_volume', {
+                chart: {
+                    type: 'column',
+                    animation: Highcharts.svg, // don't animate in old IE
+                    marginRight: 10,
+                    borderColor: '#D3D3D3',
+                    borderWidth: 1
+                },
+                time: {
+                    useUTC: false
+                },
+                title: {
+                    text: 'Volume'
+                },
+                accessibility: {
+                    announceNewData: {
+                        enabled: true,
+                        minAnnounceInterval: 15000,
+                        announcementFormatter: function (allSeries, newSeries, newPoint) {
+                            if (newPoint) {
+                                return 'New point added. Value: ' + newPoint.y;
+                            }
+                            return false;
+                        }
+                    }
+                },
+                xAxis: {
+                    type: 'datetime',
+                    tickInterval: 1000 * 60 * 60
+                },
+
+                yAxis: {
+                    title: {
+                        text: null
+                    },
+                    tickInterval: 10,
+                    tickWidth: 1,
+                    tickLength: 5,
+                    min: 0
+                },
+                tooltip: {
+                    formatter: function () {
+                        return '<b>' + moment(this.x).format("YYYY-MM-DD") + '</b><br/>' +
+                            this.series.name + ': ' + this.y + '<br/>' +
+                            'Total: ' + this.point.stackTotal;
+                    }
+                },
+                legend: {
+                    enabled: true
+                },
+                plotOptions: {
+                    column: {
+                        stacking: 'normal'
+                    }
+                },
+                exporting: {
+                    enabled: true,
+                    buttons: {
+                        contextButton: {
+                            menuItems: ['downloadCSV', 'separator', 'downloadPDF', 'downloadPNG']
+                        }
+                    }
+                },
+                credits: {
+                    enabled: false
+                },
+                series: highchart_volume_data.map(d => ({
+                    name: d.name,
+                    color: d.color,
+                    data: d.data
+                }))
+                // series: [
+                //     {
+                //         name:"shaiful",
+                //         color:"#ff0000",
+                //         data:[100,200]
+                //
+                //     },
+                //     {
+                //         name:"shaiful2",
+                //         color:"#00ff00",
+                //         data:[100,200]
+                //
+                //     }
+                // ]
+            });
+        }
+    })
+</script>
